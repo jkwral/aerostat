@@ -124,6 +124,30 @@ export class StorageStack extends cdk.Stack {
       installLatestAwsSdk: false,
     });
 
+    // Also a full-replace API on an imported bucket, same as above. Enables
+    // the transcode pipeline's S3 event -> EventBridge -> Lambda orchestration
+    // (see DECISIONS.md "Orchestration") without needing bucket ownership.
+    const notificationConfig = {
+      Bucket: BUCKET_NAME,
+      NotificationConfiguration: { EventBridgeConfiguration: {} },
+    };
+    new cr.AwsCustomResource(this, 'MediaBucketEventBridge', {
+      onCreate: {
+        service: 'S3',
+        action: 'putBucketNotificationConfiguration',
+        parameters: notificationConfig,
+        physicalResourceId: cr.PhysicalResourceId.of(`${BUCKET_NAME}-eventbridge`),
+      },
+      onUpdate: {
+        service: 'S3',
+        action: 'putBucketNotificationConfiguration',
+        parameters: notificationConfig,
+        physicalResourceId: cr.PhysicalResourceId.of(`${BUCKET_NAME}-eventbridge`),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({ resources: [bucketArn] }),
+      installLatestAwsSdk: false,
+    });
+
     new cdk.CfnOutput(this, 'MediaBucketName', { value: this.mediaBucket.bucketName });
   }
 }

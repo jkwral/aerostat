@@ -39,6 +39,8 @@ infra/                 CDK app
                            applies lifecycle + CORS config via custom resource
     upload-stack.ts        API Gateway (Cognito-authorized) + presigned
                            multipart-upload Lambdas
+    transcode-stack.ts      MediaConvert IAM role + EventBridge rule (S3
+                           Object Created on input/) + job-submitting Lambda
   lambda/
     pre-signup/            Cognito pre sign-up trigger (domain allowlist)
     upload/
@@ -46,6 +48,8 @@ infra/                 CDK app
       sign-part/             Presigns a single UploadPart URL
       complete/               Completes the multipart upload
       abort/                  Aborts the multipart upload on client-side failure
+    transcode/
+      submit-job/             Submits the MediaConvert proxy-transcode job
 frontend/               React (Vite) SPA
   src/
     config.ts             Amplify Auth configuration (Cognito User Pool)
@@ -62,7 +66,10 @@ frontend/               React (Vite) SPA
       (`AerostatUploadStack`) backed by the existing S3 bucket
       (`AerostatStorageStack`), and a React SPA with Cognito sign-in/sign-up
       and a chunked upload UI with per-file progress bars.
-- [ ] Phase 2 — Transcode pipeline
+- [x] Phase 2 — Transcode pipeline: an EventBridge rule on S3 Object Created
+      (`input/*`) drives a Lambda (`AerostatTranscodeStack`) that submits a
+      MediaConvert job producing a 480p, adaptively deinterlaced H.264/AAC
+      MP4 proxy at `proxy/<basename>.mp4`.
 - [ ] Phase 3 — Review/Approve UI
 - [ ] Phase 4 — Downstream approved-move + email
 - [ ] Phase 5 — Hardening (stretch)
