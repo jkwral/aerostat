@@ -3,6 +3,9 @@
 Serverless portal for uploading, transcoding, reviewing, and approving video
 files, built entirely on managed AWS services (no EC2).
 
+See [`DECISIONS.md`](./DECISIONS.md) for the rationale behind each
+architecture choice below.
+
 ## Architecture summary
 
 1. Signed-in users (Cognito, `@wral.com` email addresses only) upload one or
