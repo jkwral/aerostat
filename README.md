@@ -16,8 +16,10 @@ architecture choice below.
    since source video is 1080i) written to `s3://wral-media-transfer/proxy/`.
 3. On job completion, a confirmation email is sent via SES (`wral.com`
    domain); on job failure, a failure email is sent instead.
-4. Reviewers browse a library view, play the proxy via a CloudFront signed
-   URL, and approve/reject. Approval writes a sidecar JSON file
+4. Reviewers browse a library view, play the proxy via a short-lived S3
+   presigned URL (see DECISIONS.md "Playback security" — CloudFront signed
+   URLs are the documented future upgrade, deferred for now), and
+   approve/reject. Approval writes a sidecar JSON file
    (`input/<basename>.json`) recording the decision.
 5. A downstream Lambda reads the sidecar and, if approved, moves both the
    original video and the sidecar JSON from `input/` to `approved/`.
@@ -41,6 +43,9 @@ infra/                 CDK app
                            multipart-upload Lambdas
     transcode-stack.ts      MediaConvert IAM role + EventBridge rule (S3
                            Object Created on input/) + job-submitting Lambda
+                           + job-state-change Lambda (updates video status)
+    review-stack.ts         API Gateway (Cognito-authorized) + list/playback/
+                           decide Lambdas for the review queue
   lambda/
     pre-signup/            Cognito pre sign-up trigger (domain allowlist)
     upload/
@@ -50,12 +55,20 @@ infra/                 CDK app
       abort/                  Aborts the multipart upload on client-side failure
     transcode/
       submit-job/             Submits the MediaConvert proxy-transcode job
+      update-status/           Sets READY_FOR_REVIEW/TRANSCODE_FAILED on job COMPLETE/ERROR
+    review/
+      list-videos/             Lists all videos for the library view
+      playback-url/            Presigned S3 GetObject URL for the proxy
+      decide/                  Writes the approve/reject sidecar JSON + updates status
 frontend/               React (Vite) SPA
   src/
     config.ts             Amplify Auth configuration (Cognito User Pool)
+    api/                  Shared authenticated-fetch helper
     auth/                 Auth context + route guard
+    layout/               Shared nav/sign-out chrome around authenticated pages
     upload/                Upload API client + chunked multipart upload logic
-    pages/                 Login, sign-up, and upload pages
+    review/                Review API client (list/playback/decision)
+    pages/                 Login, sign-up, upload, library, and review pages
 ```
 
 ## Build status
@@ -70,7 +83,14 @@ frontend/               React (Vite) SPA
       (`input/*`) drives a Lambda (`AerostatTranscodeStack`) that submits a
       MediaConvert job producing a 480p, adaptively deinterlaced H.264/AAC
       MP4 proxy at `proxy/<basename>.mp4`.
-- [ ] Phase 3 — Review/Approve UI
+- [x] Phase 3 — Review/Approve UI: a library page lists all videos with
+      status; reviewers play the proxy (S3 presigned GET, see "Playback
+      security" caveat above) and approve/reject with optional notes, which
+      writes the sidecar JSON to `input/<basename>.json`. Also includes the
+      MediaConvert job-state-change status tracking
+      (`READY_FOR_REVIEW`/`TRANSCODE_FAILED`) that the review queue depends
+      on — pulled forward from Phase 4 since email is the only piece of that
+      phase gated on SES sandbox verification.
 - [ ] Phase 4 — Downstream approved-move + email
 - [ ] Phase 5 — Hardening (stretch)
 
@@ -100,8 +120,9 @@ config and the upload API's CORS config.
 cd frontend
 npm install
 cp .env.example .env.local   # fill in from the CDK deploy outputs:
-                              #   VITE_USER_POOL_ID       <- AerostatAuthStack.UserPoolId
-                              #   VITE_USER_POOL_CLIENT_ID <- AerostatAuthStack.UserPoolClientId
-                              #   VITE_API_BASE_URL        <- AerostatUploadStack.UploadApiUrl
+                              #   VITE_USER_POOL_ID         <- AerostatAuthStack.UserPoolId
+                              #   VITE_USER_POOL_CLIENT_ID  <- AerostatAuthStack.UserPoolClientId
+                              #   VITE_UPLOAD_API_BASE_URL  <- AerostatUploadStack.UploadApiUrl
+                              #   VITE_REVIEW_API_BASE_URL  <- AerostatReviewStack.ReviewApiUrl
 npm run dev
 ```

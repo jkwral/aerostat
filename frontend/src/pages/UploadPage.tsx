@@ -18,7 +18,7 @@ interface FileUploadState {
 }
 
 export function UploadPage() {
-  const { email, signOut, getIdToken } = useAuth();
+  const { getIdToken } = useAuth();
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
 
   function patchUpload(id: string, patch: Partial<FileUploadState>) {
@@ -59,13 +59,6 @@ export function UploadPage() {
 
   return (
     <main>
-      <div className="page-header">
-        <p>Signed in as {email}</p>
-        <button type="button" onClick={() => void signOut()}>
-          Sign out
-        </button>
-      </div>
-
       <h1>Upload video for review</h1>
       <input type="file" accept="video/*" multiple onChange={handleFilesSelected} />
 

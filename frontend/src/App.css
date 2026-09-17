@@ -46,6 +46,87 @@ form button:disabled {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+  gap: 16px;
+}
+
+.main-nav {
+  display: flex;
+  gap: 16px;
+  font-size: 15px;
+}
+
+.main-nav a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.main-nav a.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.page-header-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.video-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.video-table th,
+.video-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-video {
+  width: 100%;
+  max-width: 640px;
+  display: block;
+  margin: 16px 0;
+  background: #000;
+}
+
+textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+}
+
+.review-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.review-actions button {
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+}
+
+.review-actions button:last-child {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.review-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .upload-list {

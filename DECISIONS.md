@@ -139,6 +139,12 @@ presigned GET URLs.
 access from S3 IAM, leaving room to add WAF/rate-limiting later. (A plain
 S3 presigned GET was noted as a valid, simpler fallback if CloudFront setup
 needs to be deferred to a later phase.)
+**Phase 3 update**: Implemented the S3 presigned GET fallback instead, for
+now — a `playback-url` Lambda returns a 1-hour presigned `GetObject` URL for
+`proxy/<basename>.mp4`. CloudFront + OAC + a signed-URL key group is
+meaningfully more infrastructure (key group, private key management) for a
+30-40 user internal tool, and swapping it in later is a backend-only change
+(the frontend just plays whatever URL it's given).
 
 ### Upload mechanism
 **Decision**: S3 multipart upload via presigned URLs, issued by an

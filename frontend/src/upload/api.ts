@@ -1,4 +1,5 @@
-import { API_BASE_URL } from '../config';
+import { apiFetch } from '../api/http';
+import { UPLOAD_API_BASE_URL } from '../config';
 
 export interface InitiateUploadResponse {
   videoId: string;
@@ -12,30 +13,8 @@ export interface CompletedPart {
   eTag: string;
 }
 
-async function apiFetch<T>(path: string, idToken: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      // API Gateway's Cognito User Pools authorizer expects the raw ID
-      // token in this header, with no "Bearer " prefix.
-      Authorization: idToken,
-      ...init?.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`${path} failed with status ${response.status}: ${body}`);
-  }
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return (await response.json()) as T;
-}
-
 export function initiateUpload(idToken: string, file: File): Promise<InitiateUploadResponse> {
-  return apiFetch('/uploads', idToken, {
+  return apiFetch(UPLOAD_API_BASE_URL, '/uploads', idToken, {
     method: 'POST',
     body: JSON.stringify({
       fileName: file.name,
@@ -46,7 +25,7 @@ export function initiateUpload(idToken: string, file: File): Promise<InitiateUpl
 }
 
 export function signPart(idToken: string, videoId: string, partNumber: number): Promise<{ url: string }> {
-  return apiFetch(`/uploads/${videoId}/parts/${partNumber}`, idToken, { method: 'POST' });
+  return apiFetch(UPLOAD_API_BASE_URL, `/uploads/${videoId}/parts/${partNumber}`, idToken, { method: 'POST' });
 }
 
 export function completeUpload(
@@ -54,12 +33,12 @@ export function completeUpload(
   videoId: string,
   parts: CompletedPart[],
 ): Promise<{ videoId: string; status: string }> {
-  return apiFetch(`/uploads/${videoId}/complete`, idToken, {
+  return apiFetch(UPLOAD_API_BASE_URL, `/uploads/${videoId}/complete`, idToken, {
     method: 'POST',
     body: JSON.stringify({ parts }),
   });
 }
 
 export async function abortUpload(idToken: string, videoId: string): Promise<void> {
-  await apiFetch(`/uploads/${videoId}/abort`, idToken, { method: 'POST' });
+  await apiFetch(UPLOAD_API_BASE_URL, `/uploads/${videoId}/abort`, idToken, { method: 'POST' });
 }

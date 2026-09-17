@@ -6,6 +6,7 @@ import { AuthStack } from '../lib/auth-stack';
 import { StorageStack } from '../lib/storage-stack';
 import { UploadStack } from '../lib/upload-stack';
 import { TranscodeStack } from '../lib/transcode-stack';
+import { ReviewStack } from '../lib/review-stack';
 
 const app = new cdk.App();
 
@@ -38,7 +39,16 @@ new UploadStack(app, 'AerostatUploadStack', {
 const transcodeStack = new TranscodeStack(app, 'AerostatTranscodeStack', {
   env,
   mediaBucket: storageStack.mediaBucket,
+  videoAssetsTable: dataStack.videoAssetsTable,
 });
 // Ensures the bucket's EventBridge notification config (StorageStack) is in
 // place before the rule that depends on it deploys.
 transcodeStack.addStackDependency(storageStack);
+
+new ReviewStack(app, 'AerostatReviewStack', {
+  env,
+  allowedOrigins,
+  userPool: authStack.userPool,
+  mediaBucket: storageStack.mediaBucket,
+  videoAssetsTable: dataStack.videoAssetsTable,
+});

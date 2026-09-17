@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -10,6 +11,7 @@ import * as path from 'path';
 
 export interface TranscodeStackProps extends cdk.StackProps {
   mediaBucket: s3.IBucket;
+  videoAssetsTable: dynamodb.Table;
 }
 
 export class TranscodeStack extends cdk.Stack {
@@ -78,5 +80,30 @@ export class TranscodeStack extends cdk.Stack {
       },
     });
     rule.addTarget(new targets.LambdaFunction(submitJobFn));
+
+    // Status-only: sets READY_FOR_REVIEW / TRANSCODE_FAILED so the review
+    // queue knows what's actually playable. The SES email on this same
+    // event is Phase 4 (see DECISIONS.md open item on SES sandbox status).
+    const updateStatusFn = new NodejsFunction(this, 'UpdateTranscodeStatusFn', {
+      entry: path.join(__dirname, '..', 'lambda', 'transcode', 'update-status', 'index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      timeout: cdk.Duration.seconds(10),
+      environment: {
+        VIDEO_ASSETS_TABLE_NAME: props.videoAssetsTable.tableName,
+      },
+    });
+    props.videoAssetsTable.grantReadWriteData(updateStatusFn);
+
+    const jobStateChangeRule = new events.Rule(this, 'JobStateChangeRule', {
+      eventPattern: {
+        source: ['aws.mediaconvert'],
+        detailType: ['MediaConvert Job State Change'],
+        detail: {
+          status: ['COMPLETE', 'ERROR'],
+        },
+      },
+    });
+    jobStateChangeRule.addTarget(new targets.LambdaFunction(updateStatusFn));
   }
 }

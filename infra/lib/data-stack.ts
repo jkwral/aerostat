@@ -30,6 +30,16 @@ export class DataStack extends cdk.Stack {
       sortKey: { name: 'updatedAt', type: dynamodb.AttributeType.STRING },
     });
 
+    // Lets the MediaConvert job-state-change handler find the record for a
+    // given input/ key. Sort key matters: re-uploading the same file name
+    // creates a second record sharing that s3Key (see the upload Lambdas),
+    // so this index picks the newest one instead of an arbitrary match.
+    this.videoAssetsTable.addGlobalSecondaryIndex({
+      indexName: 'bySourceKey',
+      partitionKey: { name: 's3Key', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+    });
+
     new cdk.CfnOutput(this, 'VideoAssetsTableName', {
       value: this.videoAssetsTable.tableName,
     });
