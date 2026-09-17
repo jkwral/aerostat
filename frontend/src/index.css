@@ -1,0 +1,38 @@
+:root {
+  --text: #1f2328;
+  --bg: #ffffff;
+  --border: #d0d7de;
+  --accent: #0969da;
+  --danger: #cf222e;
+  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e6edf3;
+    --bg: #0d1117;
+    --border: #30363d;
+    --accent: #58a6ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+button {
+  cursor: pointer;
+}
