@@ -37,6 +37,18 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Check required repository variables
+        run: |
+          missing=()
+          [ -z "${{ vars.VITE_USER_POOL_ID }}" ] && missing+=(VITE_USER_POOL_ID)
+          [ -z "${{ vars.VITE_USER_POOL_CLIENT_ID }}" ] && missing+=(VITE_USER_POOL_CLIENT_ID)
+          [ -z "${{ vars.VITE_UPLOAD_API_BASE_URL }}" ] && missing+=(VITE_UPLOAD_API_BASE_URL)
+          [ -z "${{ vars.VITE_REVIEW_API_BASE_URL }}" ] && missing+=(VITE_REVIEW_API_BASE_URL)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository variables (Settings > Secrets and variables > Actions > Variables): ${missing[*]}"
+            exit 1
+          fi
+
       - name: Build
         working-directory: frontend
         env:
