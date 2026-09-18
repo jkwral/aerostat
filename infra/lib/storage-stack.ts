@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
@@ -77,7 +78,16 @@ export class StorageStack extends cdk.Stack {
         },
         physicalResourceId: cr.PhysicalResourceId.of(`${BUCKET_NAME}-lifecycle`),
       },
-      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({ resources: [bucketArn] }),
+      // fromSdkCalls() would derive the IAM action as "PutBucketLifecycleConfiguration"
+      // by capitalizing the SDK method name, but S3's actual IAM action for this
+      // operation is the legacy-named "PutLifecycleConfiguration" (no "Bucket").
+      // Spelled out explicitly here instead of relying on that derivation.
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['s3:PutLifecycleConfiguration'],
+          resources: [bucketArn],
+        }),
+      ]),
       installLatestAwsSdk: false,
     });
 
@@ -120,7 +130,16 @@ export class StorageStack extends cdk.Stack {
         },
         physicalResourceId: cr.PhysicalResourceId.of(`${BUCKET_NAME}-cors`),
       },
-      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({ resources: [bucketArn] }),
+      // S3's actual IAM action for PutBucketCors is "PutBucketCORS" (case
+      // differs from the SDK method name, but IAM action matching is
+      // case-insensitive so fromSdkCalls's derivation happens to work here —
+      // spelled out explicitly anyway for consistency with the other two).
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['s3:PutBucketCORS'],
+          resources: [bucketArn],
+        }),
+      ]),
       installLatestAwsSdk: false,
     });
 
@@ -144,7 +163,15 @@ export class StorageStack extends cdk.Stack {
         parameters: notificationConfig,
         physicalResourceId: cr.PhysicalResourceId.of(`${BUCKET_NAME}-eventbridge`),
       },
-      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({ resources: [bucketArn] }),
+      // Same legacy-naming gotcha as the lifecycle policy above: S3's actual
+      // IAM action for PutBucketNotificationConfiguration is the
+      // legacy-named "PutBucketNotification" (no "Configuration").
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['s3:PutBucketNotification'],
+          resources: [bucketArn],
+        }),
+      ]),
       installLatestAwsSdk: false,
     });
 
