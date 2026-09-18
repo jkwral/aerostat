@@ -58,6 +58,15 @@ jobs:
           VITE_REVIEW_API_BASE_URL: ${{ vars.VITE_REVIEW_API_BASE_URL }}
         run: npm run build
 
+      # GitHub Pages is a plain file server: a hard refresh on a client-side
+      # route like /library sends a real request for that path, which has
+      # no matching file. Serving a copy of index.html as 404.html means
+      # GitHub Pages falls back to it for any unmatched path, and React
+      # Router then renders the right page from the real URL client-side.
+      - name: Add 404.html fallback for client-side routing
+        working-directory: frontend
+        run: cp dist/index.html dist/404.html
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
