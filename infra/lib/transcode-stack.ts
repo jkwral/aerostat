@@ -12,6 +12,8 @@ import * as path from 'path';
 export interface TranscodeStackProps extends cdk.StackProps {
   mediaBucket: s3.IBucket;
   videoAssetsTable: dynamodb.Table;
+  /** Must be a verified SES identity (see DECISIONS.md open item on SES sandbox status). */
+  fromEmail: string;
 }
 
 export class TranscodeStack extends cdk.Stack {
@@ -105,5 +107,30 @@ export class TranscodeStack extends cdk.Stack {
       },
     });
     jobStateChangeRule.addTarget(new targets.LambdaFunction(updateStatusFn));
+
+    // Success/failure email to the uploader. A separate Lambda/target from
+    // updateStatusFn so an SES failure (e.g. still-unverified domain, see
+    // DECISIONS.md open items) can never block status tracking.
+    const sendStatusEmailFn = new NodejsFunction(this, 'SendTranscodeStatusEmailFn', {
+      entry: path.join(__dirname, '..', 'lambda', 'transcode', 'send-status-email', 'index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      timeout: cdk.Duration.seconds(10),
+      environment: {
+        VIDEO_ASSETS_TABLE_NAME: props.videoAssetsTable.tableName,
+        FROM_EMAIL: props.fromEmail,
+      },
+    });
+    props.videoAssetsTable.grantReadData(sendStatusEmailFn);
+
+    const fromDomain = props.fromEmail.split('@')[1];
+    sendStatusEmailFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        resources: [`arn:${cdk.Aws.PARTITION}:ses:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:identity/${fromDomain}`],
+      }),
+    );
+
+    jobStateChangeRule.addTarget(new targets.LambdaFunction(sendStatusEmailFn));
   }
 }

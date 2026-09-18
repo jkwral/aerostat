@@ -43,9 +43,11 @@ infra/                 CDK app
                            multipart-upload Lambdas
     transcode-stack.ts      MediaConvert IAM role + EventBridge rule (S3
                            Object Created on input/) + job-submitting Lambda
-                           + job-state-change Lambda (updates video status)
+                           + job-state-change Lambdas (status update + email)
     review-stack.ts         API Gateway (Cognito-authorized) + list/playback/
                            decide Lambdas for the review queue
+    approved-move-stack.ts   EventBridge rule (S3 Object Created on input/)
+                           + Lambda that moves approved videos to approved/
   lambda/
     pre-signup/            Cognito pre sign-up trigger (domain allowlist)
     upload/
@@ -56,10 +58,12 @@ infra/                 CDK app
     transcode/
       submit-job/             Submits the MediaConvert proxy-transcode job
       update-status/           Sets READY_FOR_REVIEW/TRANSCODE_FAILED on job COMPLETE/ERROR
+      send-status-email/       Emails the uploader on job COMPLETE/ERROR (SES)
     review/
       list-videos/             Lists all videos for the library view
       playback-url/            Presigned S3 GetObject URL for the proxy
       decide/                  Writes the approve/reject sidecar JSON + updates status
+    approved-move/            Moves an approved video + its sidecar to approved/
 frontend/               React (Vite) SPA
   src/
     config.ts             Amplify Auth configuration (Cognito User Pool)
@@ -91,7 +95,14 @@ frontend/               React (Vite) SPA
       (`READY_FOR_REVIEW`/`TRANSCODE_FAILED`) that the review queue depends
       on — pulled forward from Phase 4 since email is the only piece of that
       phase gated on SES sandbox verification.
-- [ ] Phase 4 — Downstream approved-move + email
+- [x] Phase 4 — Downstream approved-move + email: on a review decision, a
+      sidecar-triggered Lambda (`AerostatApprovedMoveStack`) moves approved
+      videos (+ sidecar) from `input/` to `approved/` (rejected videos stay
+      put and expire via the 30-day lifecycle rule); a second job-state-change
+      Lambda in `AerostatTranscodeStack` emails the uploader via SES on
+      transcode COMPLETE/ERROR. **Email will not actually deliver until the
+      `fromEmail` domain is a verified SES identity** — see DECISIONS.md open
+      items (this was flagged from the start as unverified).
 - [ ] Phase 5 — Hardening (stretch)
 
 ## Getting started
@@ -113,6 +124,10 @@ rules and browser CORS config to that bucket. Pass allowed frontend origins
 with `-c allowedOrigins=https://your.frontend.domain` (defaults to
 `http://localhost:5173` for local dev) — this feeds both the bucket CORS
 config and the upload API's CORS config.
+
+Pass the verified SES sender address with `-c fromEmail=you@wral.com`
+(defaults to the placeholder `no-reply@wral.com`, which will fail to send
+until `wral.com` is a verified SES identity in this account/region).
 
 ### Frontend
 

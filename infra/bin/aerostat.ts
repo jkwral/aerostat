@@ -7,6 +7,7 @@ import { StorageStack } from '../lib/storage-stack';
 import { UploadStack } from '../lib/upload-stack';
 import { TranscodeStack } from '../lib/transcode-stack';
 import { ReviewStack } from '../lib/review-stack';
+import { ApprovedMoveStack } from '../lib/approved-move-stack';
 
 const app = new cdk.App();
 
@@ -25,6 +26,11 @@ const allowedOrigins: string[] = allowedOriginsContext
       .map((origin) => origin.trim())
   : ['http://localhost:5173'];
 
+// Must be a verified SES identity before emails will actually send; see
+// DECISIONS.md open item on SES sandbox/domain verification status.
+// Override with `-c fromEmail=you@wral.com`.
+const fromEmail = String(app.node.tryGetContext('fromEmail') ?? 'no-reply@wral.com');
+
 const dataStack = new DataStack(app, 'AerostatDataStack', { env });
 const authStack = new AuthStack(app, 'AerostatAuthStack', { env });
 const storageStack = new StorageStack(app, 'AerostatStorageStack', { env, allowedOrigins });
@@ -40,6 +46,7 @@ const transcodeStack = new TranscodeStack(app, 'AerostatTranscodeStack', {
   env,
   mediaBucket: storageStack.mediaBucket,
   videoAssetsTable: dataStack.videoAssetsTable,
+  fromEmail,
 });
 // Ensures the bucket's EventBridge notification config (StorageStack) is in
 // place before the rule that depends on it deploys.
@@ -52,3 +59,10 @@ new ReviewStack(app, 'AerostatReviewStack', {
   mediaBucket: storageStack.mediaBucket,
   videoAssetsTable: dataStack.videoAssetsTable,
 });
+
+const approvedMoveStack = new ApprovedMoveStack(app, 'AerostatApprovedMoveStack', {
+  env,
+  mediaBucket: storageStack.mediaBucket,
+  videoAssetsTable: dataStack.videoAssetsTable,
+});
+approvedMoveStack.addStackDependency(storageStack);

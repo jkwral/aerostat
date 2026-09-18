@@ -49,6 +49,11 @@ silence on failure.
 **Implementation**: EventBridge rule on MediaConvert job state change
 (`COMPLETE` → success email, `ERROR` → failure email) via a Lambda, not a
 timer or poll.
+**Phase 4 update**: Split into two separate Lambda targets on the same rule
+— one updates DynamoDB status (`READY_FOR_REVIEW`/`TRANSCODE_FAILED`, added
+in Phase 3 since the review queue needed it), the other sends the SES
+email. Keeping them separate means an SES failure (e.g. unverified domain)
+can never block status tracking, and vice versa.
 
 ### Sidecar JSON location
 **Decision**: Write the sidecar to `input/` only (not `proxy/`, not both).
@@ -182,13 +187,17 @@ multi-step retry logic needed. Step Functions would be reconsidered if a
 later phase adds real orchestration complexity (e.g., multiple output
 renditions, multi-step external handoffs).
 
-## Open items / things to verify before Phase 4 rollout
+## Open items / things to verify before real rollout
 
-- **SES sandbox status**: not verified from this session (no AWS console/CLI
-  access) — confirm whether the account is still in SES sandbox mode
-  (which restricts sending to verified recipients only) and whether
-  `wral.com` is already a verified SES identity in us-east-1, before
-  relying on email delivery to real users.
+- **SES sandbox status (now blocking)**: Phase 4's email Lambda is built and
+  deployed, but still not verified from any session here (no AWS
+  console/CLI access) — confirm whether the account is still in SES sandbox
+  mode (which restricts sending to verified recipients only) and whether
+  `wral.com` (or whatever domain `fromEmail` uses) is a verified SES
+  identity in us-east-1. Until then, `SendEmail` calls will fail at
+  runtime — status tracking and the review queue are unaffected (see
+  "Email trigger timing" Phase 4 update), but uploaders won't get
+  notified.
 - **480p sufficiency**: first attempt at proxy resolution; revisit with
   actual reviewers if footage detail (e.g., on-screen text, tight framing)
   is hard to judge at that resolution.
